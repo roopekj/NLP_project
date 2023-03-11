@@ -45,8 +45,8 @@ for i, data1 in enumerate(data):
     for j, data2 in enumerate(data[i:]):
         sim = np.dot(data1, data2)/(np.linalg.norm(data1)*np.linalg.norm(data2))
 
-        distances[i, j+i] = 1 - sim
-        distances[j+i, i] = 1 - sim
+        distances[i, j] = 1 - sim
+        distances[j, i] = 1 - sim
 
 tsne = TSNE(n_components=2, n_iter=5000, n_iter_without_progress=200, perplexity=35)
 tsne_result = tsne.fit_transform(distances)
