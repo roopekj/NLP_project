@@ -11,3 +11,4 @@ lxml==4.2.4
 macholib==1.11
 matplotlib==3.5.3
 matplotlib-inline==0.1.6
+sentence_transformers==2.2.2
