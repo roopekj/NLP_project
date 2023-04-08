@@ -1,0 +1,48 @@
+:root {
+    --background: #d1dbe4;
+    --accent: #194a7a;
+    --foreground: #476f95;
+    --foreground2: #7593af;
+    --background2: #a3b7ca;
+    --white: #dde7fb;
+    --whiter: #fafbfc;
+    --black: #0e2944;
+}
+
+body {
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+}
+
+#react-entry-point {
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+}
+
+#frame {
+    width: 100%;
+    height: 100%;
+    scroll-snap-type: y mandatory;
+    overflow-y: scroll;
+}
+
+.page {
+    background: var(--background);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 80vw;
+    height: 100vh;
+    margin: auto;
+    scroll-snap-align: start;
+    scroll-snap-stop: normal;
+}
+
+#title {
+    background: var(--background);
+    font-family: "Optima";
+    font-size: 80px;
+    text-align: center;
+}
