@@ -7,9 +7,12 @@ import dash_cytoscape as cyto
 server = flask.Flask(__name__)
 app = Dash(__name__, server=server)
 
+NODE_COUNT = None
+
 # Load data
-samples = json.load(open("data/samples.json"))[:100]
-labels = json.load(open("data/labels.json"))[:100]
+samples = json.load(open("data/samples.json"))[:NODE_COUNT]
+labels = json.load(open("data/labels.json"))[:NODE_COUNT]
+embeddings = json.load(open("data/embeddings.json"))[:NODE_COUNT]
 assert len(samples) == len(labels), "Samples and labels must have the same length"
 
 # Create nodes
@@ -22,18 +25,21 @@ for i in range(len(samples)):
                 "label": ((" ".join(samples[i].split(" ")[:3])[:10]) + "..."),
                 "group": labels[i],
             },
+            "position": {"x": embeddings[i][0], "y": embeddings[i][1]},
             "classes": f"node-{labels[i]}",
-            "grabbable": True,
+            "grabbable": False,
             "selectable": False,
             "selected": False,
         }
     )
 
+NODE_SIZE = 1
+
 # Set stylesheet
 default_stylesheet = [
     {
         "selector": "node",
-        "style": {"label": "data(label)"},
+        "style": {"label": "data(label)", "width": NODE_SIZE, "height": NODE_SIZE},
     },
     {"selector": ".red", "style": {"background-color": "red", "line-color": "red"}},
 ]
@@ -69,6 +75,7 @@ for i, label in enumerate(unique_labels):
             "style": {
                 "background-color": colors[i],
                 "line-color": colors[i],
+                "font-size": "0em",
             },
         }
     )
@@ -78,7 +85,7 @@ graph = cyto.Cytoscape(
     id="graph",
     # layout={"name": "concentric"},
     # layout={"name": "random"},
-    layout={"name": "spread"},
+    layout={"name": "preset"},
     elements=nodes,
     stylesheet=default_stylesheet,
     style={"width": "100%", "height": "100%"},
