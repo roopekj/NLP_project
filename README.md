@@ -24,7 +24,7 @@ python3 -m pip install -r requirements.txt
 4. Run the following command (if a prompt appears asking you to allow incoming connections, please accept it):
 
 ```bash
-gunicorn -w 2 -b :8050 app:server --reload --timeout 9000
+python3 -m gunicorn -w 2 -b :8050 app:server --reload --timeout 9000
 ```
 
 5. Finally, navigate to either one of the following addresses in your web browser: `localhost:8050` or `http://0.0.0.0:8050`
