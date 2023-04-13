@@ -4,7 +4,6 @@ asttokens==2.2.1
 attrs==22.2.0
 Automat==22.10.0
 backcall==0.2.0
-certifi @ file:///Users/cbousseau/work/recipes/ci_py311/certifi_1677903144932/work/certifi
 cffi==1.15.1
 charset-normalizer==3.1.0
 click==8.1.3
