@@ -1,4 +1,4 @@
-# NLP_project
+# NLP project
 
 
 ## Instructions
@@ -7,7 +7,7 @@ Please, contact sergio.hernandezgutierrez@aalto.fi if the following steps are no
 
 To run the visualization application, please follow the following steps:
 
-1. Make sure you have Python with version >=3.10 installed in your computer; earlier versions of Python3 should also work but they have not been tested.
+1. Make sure you have Python with version >= 3.10 installed in your computer; earlier versions of Python3 should also work but they have not been tested.
 
 2. In a terminal emulator (e.g., a terminal using Bash), use `cd` commands to place yourself in the `src` subdirectory of the submission's root folder and use this terminal for the next steps; for example:
 

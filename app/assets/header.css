@@ -46,3 +46,41 @@ body {
     font-size: 80px;
     text-align: center;
 }
+
+#graph-container {
+    width: 100%;
+    height: 80%;
+    display: flex;
+    flex-direction: column;
+}
+
+.rc-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 15px;
+    border-radius: 50%;   
+    background: var(--background);
+    outline: none;
+    opacity: 0.7;
+    -webkit-transition: .2s;
+    transition: opacity .2s;
+}
+
+.rc-slider-track {
+    background: var(--foreground);
+}
+
+.rc-slider-handle {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: none;
+    margin-top: -8px;
+    background-color: var(--accent);
+    cursor: pointer;
+    right: auto;
+    transform: translateX(-50%);
+    touch-action: pan-x;
+}
