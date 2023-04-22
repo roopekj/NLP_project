@@ -1,11 +1,11 @@
 # Project Plan
 
 - [ ] Finnish 🇫🇮 basic frontend
-  - [ ] Node positions (Merlo)
+  - [x] Node positions (Merlo)
   - [x] Proper labelling according to clusters (Sergio)
   - [x] Different "zoom" levels -> slider (Sergio)
   - [ ] NEW: Edit notebook to do the same steps but iterating over all zoom levels (i.e., number of clusters) and create all data json files (for samples, labels and clusters) (Someone please)
-  - [ ] (Optional priority) Click on node to see article preview and cluster label (Merlo)
+  - [x] (Optional priority) Click on node to see article preview and cluster label (Merlo)
   - [ ] (Optional) Select different algos/clusterings (Anyone who wants to give it a shot?)
   - [ ] (Optional) Tweak color scheme (Anyone who wants to give it a shot?)
   - [ ] (Optional) Connect similar nodes manually/automagically (Anyone who wants to give it a shot?)

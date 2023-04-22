@@ -1,15 +1,16 @@
 import json
 
 import dash_cytoscape as cyto
+import dash_bootstrap_components as dbc
 import flask
-from dash import Dash, Input, Output, dcc, html
+from dash import Dash, Input, Output, dcc, html, State
 
 MIN_ZOOM_LEVEL = 5
 MAX_ZOOM_LEVEL = 20
 STEP_ZOOM_LEVEL = 5
 DEFAULT_ZOOM_LEVEL = 20
 N_NODES = 1000
-NODE_SIZE = 1
+NODE_SIZE = 4
 COLORS = [
     "#e6194b",
     "#3cb44b",
@@ -37,7 +38,7 @@ COLORS = [
 
 
 server = flask.Flask(__name__)
-app = Dash(__name__, server=server)
+app = Dash(__name__, server=server, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 
 def get_nodes(zoom_level: int, max_nodes: int = -1) -> list[dict]:
@@ -56,10 +57,12 @@ def get_nodes(zoom_level: int, max_nodes: int = -1) -> list[dict]:
 
     # Load the data
     data = json.load(open("data/data.json"))
-    tot_samples = max_nodes if max_nodes > 0 else len(data["dataset"]["samples"])
-    samples = [ data["dataset"]["samples"][i]["data"] for i in range(tot_samples) ]
+    tot_samples = max_nodes if max_nodes > 0 else len(
+        data["dataset"]["samples"])
+    samples = [data["dataset"]["samples"][i]["data"]
+               for i in range(tot_samples)]
     clusters = data["clusters"][:tot_samples]
-    
+
     cluster_keywords = data["cluster_keywords"]
     labels = [cluster_keywords[str(clusters[i])] for i in range(tot_samples)]
 
@@ -77,6 +80,7 @@ def get_nodes(zoom_level: int, max_nodes: int = -1) -> list[dict]:
                     "id": i,
                     "label": labels[i],
                     "group": clusters[i],
+                    "text": samples[i],
                 },
                 "position": {"x": embeddings[i][0], "y": embeddings[i][1]},
                 "classes": f"node-{clusters[i]}",
@@ -157,6 +161,20 @@ def get_layout(nodes: list[dict]) -> html.Div:
                 [html.H1("Note clustering demo", id="title"), graph],
                 className="page",
             ),
+            dbc.Modal(
+                [
+                    dbc.ModalHeader(dbc.ModalTitle("Article")),
+                    dbc.ModalBody("", id="modal-body"),
+                    dbc.ModalFooter([
+                        html.Span([], id='tags'),
+                        dbc.Button(
+                            "Close", id="close", className="ms-auto", n_clicks=0
+                        )
+                    ]),
+                ],
+                id="modal",
+                is_open=False,
+            ),
         ],
         id="frame",
     )
@@ -185,8 +203,29 @@ def init_app():
         -------
         The new nodes for the graph.
         """
-
         return get_nodes(value, N_NODES)
+
+    # add a callback that prints when a node is clicked
+    @app.callback([Output("modal", "is_open"), Output("modal-body", "children"), Output("tags", "children")],
+                  [Input("graph", "tapNodeData"), Input("close", "n_clicks")],
+                  [State("modal", "is_open")])
+    def print_node_data(data, close, is_open):
+        open = is_open
+        if close:
+            open = not is_open
+        if data:
+            tags = []
+            for tag in data["label"]:
+                tags.append(
+                    dbc.Badge(
+                            f"{tag}",
+                            color="white",
+                            text_color="primary",
+                            className="border me-1",
+                            ),
+                )
+            return not is_open, data["text"], tags
+        return open, "Test", []
 
 
 if __name__ == "app":
