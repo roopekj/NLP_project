@@ -8,7 +8,8 @@ MIN_ZOOM_LEVEL = 5
 MAX_ZOOM_LEVEL = 20
 STEP_ZOOM_LEVEL = 5
 DEFAULT_ZOOM_LEVEL = 20
-N_NODES = 100
+N_NODES = 1000
+NODE_SIZE = 1
 COLORS = [
     "#e6194b",
     "#3cb44b",
@@ -54,10 +55,15 @@ def get_nodes(zoom_level: int, max_nodes: int = -1) -> list[dict]:
     """
 
     # Load the data
-    zoom = str(zoom_level)
-    samples = json.load(open("data/samples_" + zoom + ".json"))[:max_nodes]
-    clusters = json.load(open("data/clusters_" + zoom + ".json"))[:max_nodes]
-    labels = json.load(open("data/labels_" + zoom + ".json"))[:max_nodes]
+    data = json.load(open("data/data.json"))
+    tot_samples = max_nodes if max_nodes > 0 else len(data["dataset"]["samples"])
+    samples = [ data["dataset"]["samples"][i]["data"] for i in range(tot_samples) ]
+    clusters = data["clusters"][:tot_samples]
+    
+    cluster_keywords = data["cluster_keywords"]
+    labels = [cluster_keywords[str(clusters[i])] for i in range(tot_samples)]
+
+    embeddings = data["tsne_embeddings"][:tot_samples]
     assert (
         len(samples) == len(labels) == len(clusters)
     ), "Samples, clusters and labels must have the same length"
@@ -72,9 +78,10 @@ def get_nodes(zoom_level: int, max_nodes: int = -1) -> list[dict]:
                     "label": labels[i],
                     "group": clusters[i],
                 },
+                "position": {"x": embeddings[i][0], "y": embeddings[i][1]},
                 "classes": f"node-{clusters[i]}",
-                "grabbable": True,
-                "selectable": False,
+                "grabbable": False,
+                "selectable": True,
                 "selected": False,
             }
         )
@@ -101,7 +108,7 @@ def get_layout(nodes: list[dict]) -> html.Div:
     default_stylesheet = [
         {
             "selector": "node",
-            "style": {"label": "data(label)"},
+            "style": {"width": NODE_SIZE, "height": NODE_SIZE},
         },
     ]
 
@@ -125,7 +132,7 @@ def get_layout(nodes: list[dict]) -> html.Div:
                 id="graph",
                 # layout={"name": "concentric"},
                 # layout={"name": "random"},
-                layout={"name": "spread"},
+                layout={"name": "preset"},
                 elements=nodes,
                 stylesheet=default_stylesheet,
                 style={"width": "100%", "height": "100%"},
