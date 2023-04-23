@@ -3,39 +3,11 @@ import json
 import dash_cytoscape as cyto
 import dash_bootstrap_components as dbc
 import flask
+import seaborn as sns
 from dash import Dash, Input, Output, dcc, html, State
 
-MIN_ZOOM_LEVEL = 5
-MAX_ZOOM_LEVEL = 20
-STEP_ZOOM_LEVEL = 5
-DEFAULT_ZOOM_LEVEL = 20
-N_NODES = 1000
-NODE_SIZE = 4
-COLORS = [
-    "#e6194b",
-    "#3cb44b",
-    "#ffe119",
-    "#4363d8",
-    "#f58231",
-    "#911eb4",
-    "#46f0f0",
-    "#f032e6",
-    "#bcf60c",
-    "#fabebe",
-    "#008080",
-    "#e6beff",
-    "#9a6324",
-    "#fffac8",
-    "#800000",
-    "#aaffc3",
-    "#808000",
-    "#ffd8b1",
-    "#000075",
-    "#808080",
-    "#ffffff",
-    "#000000",
-]
-
+ZOOM_LEVELS = []
+CURRENT_ZOOM_LEVEL = 0
 
 server = flask.Flask(__name__)
 app = Dash(__name__, server=server, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -57,30 +29,32 @@ def get_nodes(zoom_level: int, max_nodes: int = -1) -> list[dict]:
 
     # Load the data
     data = json.load(open("data/data.json"))
-    tot_samples = max_nodes if max_nodes > 0 else len(
-        data["dataset"]["samples"])
     samples = [data["dataset"]["samples"][i]["data"]
-               for i in range(tot_samples)]
-    clusters = data["clusters"][:tot_samples]
+               for i in range(len(data["dataset"]["samples"]))]
+    level_data = data["data"][f"{zoom_level}"]
 
-    cluster_keywords = data["cluster_keywords"]
-    labels = [cluster_keywords[str(clusters[i])] for i in range(tot_samples)]
+    clusters = level_data["clusters"]
 
-    embeddings = data["tsne_embeddings"][:tot_samples]
-    assert (
-        len(samples) == len(labels) == len(clusters)
-    ), "Samples, clusters and labels must have the same length"
+    cluster_keywords = level_data["cluster_keywords"]
+    labels = [cluster_keywords[str(clusters[i])] for i in range(len(clusters))]
+
+    embeddings = level_data["tsne_embeddings"]
+    if(zoom_level == -1):
+        assert (
+            len(samples) == len(labels) == len(clusters)
+        ), "Samples, clusters and labels must have the same length"
 
     # Create the nodes
     nodes = []
-    for i in range(len(samples)):
+    # TODO FIX
+    for i in range(len(clusters)):
         nodes.append(
             {
                 "data": {
                     "id": i,
                     "label": labels[i],
                     "group": clusters[i],
-                    "text": samples[i],
+                    "text": samples[i] if zoom_level == -1 else "This node represents a cluster of articles.\n You can see what the cluster is about from the tags below, or use the slider to increase the zoom level and see the articles inside.",
                 },
                 "position": {"x": embeddings[i][0], "y": embeddings[i][1]},
                 "classes": f"node-{clusters[i]}",
@@ -92,8 +66,35 @@ def get_nodes(zoom_level: int, max_nodes: int = -1) -> list[dict]:
 
     return nodes
 
+def get_stylesheet(nodes: list[dict]):
+    size = max(150 / len(nodes), 2)
 
-def get_layout(nodes: list[dict]) -> html.Div:
+    default_stylesheet = [
+        {
+            "selector": "node",
+            "style": {"width": size, "height": size},
+        },
+    ]
+
+    unique_clusters = list(set([node["data"]["group"] for node in nodes]))
+    # generate a seaborn color palette for the clusters
+    palette = sns.color_palette("tab20", len(unique_clusters)) + sns.color_palette("tab20b", len(unique_clusters)) + sns.color_palette("tab20c", len(unique_clusters))
+    for i, cluster in enumerate(unique_clusters):
+        # convert palette to hex
+        palette[i] = "#" + "".join([f"{int(255*c):02x}" for c in palette[i]])
+        default_stylesheet.append(
+            {
+                "selector": f".node-{cluster}",
+                "style": {
+                    "background-color": palette[i],
+                    "line-color": palette[i],
+                },
+            }
+        )
+
+    return default_stylesheet
+
+def get_layout(nodes: list[dict], levels: list) -> html.Div:
     """
     Get the layout of the app.
 
@@ -108,25 +109,7 @@ def get_layout(nodes: list[dict]) -> html.Div:
     The layout of the app.
     """
 
-    # Set stylesheet
-    default_stylesheet = [
-        {
-            "selector": "node",
-            "style": {"width": NODE_SIZE, "height": NODE_SIZE},
-        },
-    ]
-
-    unique_clusters = list(set([node["data"]["group"] for node in nodes]))
-    for i, cluster in enumerate(unique_clusters):
-        default_stylesheet.append(
-            {
-                "selector": f".node-{cluster}",
-                "style": {
-                    "background-color": COLORS[i],
-                    "line-color": COLORS[i],
-                },
-            }
-        )
+    default_stylesheet = get_stylesheet(nodes)
 
     # Create the graph (a cytoscape)
     cyto.load_extra_layouts()
@@ -141,13 +124,9 @@ def get_layout(nodes: list[dict]) -> html.Div:
                 stylesheet=default_stylesheet,
                 style={"width": "100%", "height": "100%"},
             ),
-            dcc.Slider(
-                MIN_ZOOM_LEVEL,
-                MAX_ZOOM_LEVEL,
-                STEP_ZOOM_LEVEL,
-                value=DEFAULT_ZOOM_LEVEL,
+            dcc.Slider(0, len(levels)-1, step=None,
                 id="zoom-slider",
-                marks=None,
+                marks={i: f"Zoom {levels[i]}" for i in range(len(levels))},
                 tooltip={"placement": "bottom", "always_visible": True},
             ),
         ],
@@ -158,7 +137,7 @@ def get_layout(nodes: list[dict]) -> html.Div:
     return html.Div(
         [
             html.Section(
-                [html.H1("Note clustering demo", id="title"), graph],
+                [html.H1("News clustering demo", id="title"), graph],
                 className="page",
             ),
             dbc.Modal(
@@ -179,18 +158,22 @@ def get_layout(nodes: list[dict]) -> html.Div:
         id="frame",
     )
 
-
 def init_app():
     """
     Initialize the app.
     """
 
     # Initial nodes at default zoom level
-    nodes = get_nodes(DEFAULT_ZOOM_LEVEL, N_NODES)
-    app.layout = get_layout(nodes)
+    data = json.load(open("data/data.json"))
+    global ZOOM_LEVELS, CURRENT_ZOOM_LEVEL
+    ZOOM_LEVELS = data["zoom_levels"]
+    CURRENT_ZOOM_LEVEL = ZOOM_LEVELS[0]
+    nodes = get_nodes(CURRENT_ZOOM_LEVEL)
+    app.layout = get_layout(nodes, ZOOM_LEVELS)
 
     # Set up the callback for the zoom slider
-    @app.callback(Output("graph", "elements"), Input("zoom-slider", "value"))
+    @app.callback([Output("graph", "elements"), Output("graph", "stylesheet")], 
+                   Input("zoom-slider", "value"))
     def update_graph_zoom(value: int) -> list[dict]:
         """
         Update the graph when the zoom level changes.
@@ -203,7 +186,12 @@ def init_app():
         -------
         The new nodes for the graph.
         """
-        return get_nodes(value, N_NODES)
+        global CURRENT_ZOOM_LEVEL
+        if value is not None:
+            CURRENT_ZOOM_LEVEL = ZOOM_LEVELS[value]
+        nodes = get_nodes(CURRENT_ZOOM_LEVEL)
+        style = get_stylesheet(nodes)
+        return nodes, style
 
     # add a callback that prints when a node is clicked
     @app.callback([Output("modal", "is_open"), Output("modal-body", "children"), Output("tags", "children")],
