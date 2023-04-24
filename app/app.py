@@ -146,9 +146,6 @@ def get_layout(nodes: list[dict], levels: list) -> html.Div:
                     dbc.ModalBody("", id="modal-body"),
                     dbc.ModalFooter([
                         html.Span([], id='tags'),
-                        dbc.Button(
-                            "Close", id="close", className="ms-auto", n_clicks=0
-                        )
                     ]),
                 ],
                 id="modal",
@@ -194,13 +191,9 @@ def init_app():
         return nodes, style
 
     # add a callback that prints when a node is clicked
-    @app.callback([Output("modal", "is_open"), Output("modal-body", "children"), Output("tags", "children")],
-                  [Input("graph", "tapNodeData"), Input("close", "n_clicks")],
-                  [State("modal", "is_open")])
-    def print_node_data(data, close, is_open):
-        open = is_open
-        if close:
-            open = not is_open
+    @app.callback([Output("graph", "tapNodeData"), Output("modal", "is_open"), Output("modal-body", "children"), Output("tags", "children")],
+                  [Input("graph", "tapNodeData")])
+    def print_node_data(data):
         if data:
             tags = []
             for tag in data["label"]:
@@ -212,8 +205,8 @@ def init_app():
                             className="border me-1",
                             ),
                 )
-            return not is_open, data["text"], tags
-        return open, "Test", []
+            return [], True, data["text"], tags
+        return [], False, "", []
 
 
 if __name__ == "app":
