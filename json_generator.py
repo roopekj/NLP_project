@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import re
 
 from sklearn.datasets import fetch_20newsgroups
-from sklearn.cluster import AgglomerativeClustering
+from sklearn.cluster import KMeans, AgglomerativeClustering, SpectralClustering
 from sklearn.manifold import TSNE
 from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
@@ -16,8 +16,9 @@ from bertopic.vectorizers import ClassTfidfTransformer
 ZOOM_LEVELS = [5, 10, 20, -1] # -1 is for the full graph (clusters with the second to last zoom level)
 MODEL = 'all-MiniLM-L6-v2'
 OUTPUT_FILE = 'app/data/data.json'
+CLUSTER_ALGOS = ['kmeans', 'agglomerative', 'spectral']
 
-def generate_clusters(embeddings: np.ndarray, n_clusters: int) -> list[int]:
+def generate_clusters(embeddings: np.ndarray, n_clusters: int, algo) -> list[int]:
     """
     Generate clusters for the given embeddings.
 
@@ -32,8 +33,13 @@ def generate_clusters(embeddings: np.ndarray, n_clusters: int) -> list[int]:
     """
 
     # Cluster the embeddings
-    kmeans = AgglomerativeClustering(n_clusters=n_clusters, random_state=0, n_init='auto').fit(embeddings)
-    clusters = kmeans.labels_
+    if algo == 'agglomerative':
+        c = AgglomerativeClustering(n_clusters=n_clusters, affinity='euclidean', linkage='ward').fit(embeddings)
+    elif algo == 'kmeans':
+        c = KMeans(n_clusters=n_clusters, random_state=0, n_init='auto').fit(embeddings)
+    elif algo == 'spectral':
+        c = SpectralClustering(n_clusters=n_clusters, affinity='nearest_neighbors').fit(embeddings)
+    clusters = c.labels_
 
     return clusters.tolist()
 
@@ -119,8 +125,13 @@ def main():
     parser.add_argument('-o', '--output', type=str, default=OUTPUT_FILE, help='Output file path')
     parser.add_argument('-m', '--model', type=str, default=MODEL, help='SBERT model to use')
     parser.add_argument('-z', '--zoom', type=int, nargs='+', default=ZOOM_LEVELS, help='Zoom levels to use')
+    parser.add_argument('-c', '--cluster', type=str, default='agglomerative', help='Clustering algorithm to use')
+
     args = parser.parse_args()
 
+    if not args.cluster in CLUSTER_ALGOS:
+        args.cluster = 'agglomerative'
+    
     ZOOM_LEVELS = args.zoom
     MODEL = args.model
     OUTPUT_FILE = args.output
