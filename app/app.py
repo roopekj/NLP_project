@@ -123,6 +123,10 @@ def get_layout(nodes: list[dict], levels: list) -> html.Div:
                 elements=nodes,
                 stylesheet=default_stylesheet,
                 style={"width": "100%", "height": "100%"},
+                userZoomingEnabled=True,
+                zoomingEnabled=True,
+                zoom=100,
+                responsive=True
             ),
             dcc.Slider(0, len(levels)-1, step=None,
                 id="zoom-slider",
@@ -191,9 +195,10 @@ def init_app():
         return nodes, style
 
     # add a callback that prints when a node is clicked
-    @app.callback([Output("graph", "tapNodeData"), Output("modal", "is_open"), Output("modal-body", "children"), Output("tags", "children")],
-                  [Input("graph", "tapNodeData")])
-    def print_node_data(data):
+    @app.callback([Output("modal", "is_open"), Output("modal-body", "children"), Output("tags", "children")],
+                  [Input("graph", "tapNode")],
+                  [State("graph", "tapNodeData")])
+    def print_node_data(_, data):
         if data:
             tags = []
             for tag in data["label"]:
@@ -205,8 +210,16 @@ def init_app():
                             className="border me-1",
                             ),
                 )
-            return [], True, data["text"], tags
-        return [], False, "", []
+            return True, data["text"], tags
+        return False, "", []
+    
+    @app.callback(Output("graph", "zoomingEnabled"),
+                  Input("graph", "relayoutData"))
+    def update_node_sizes(zoom):
+        print("UPDATING NODES")
+        print(zoom)
+        return True
+
 
 
 if __name__ == "app":

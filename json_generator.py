@@ -2,14 +2,16 @@ import json
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
+import re
 
 from sklearn.datasets import fetch_20newsgroups
-from sklearn.cluster import KMeans
+from sklearn.cluster import AgglomerativeClustering
 from sklearn.manifold import TSNE
 from sklearn.decomposition import LatentDirichletAllocation
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
 from sentence_transformers import SentenceTransformer
+from bertopic.vectorizers import ClassTfidfTransformer
 
 ZOOM_LEVELS = [5, 10, 20, -1] # -1 is for the full graph (clusters with the second to last zoom level)
 MODEL = 'all-MiniLM-L6-v2'
@@ -30,7 +32,7 @@ def generate_clusters(embeddings: np.ndarray, n_clusters: int) -> list[int]:
     """
 
     # Cluster the embeddings
-    kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init='auto').fit(embeddings)
+    kmeans = AgglomerativeClustering(n_clusters=n_clusters, random_state=0, n_init='auto').fit(embeddings)
     clusters = kmeans.labels_
 
     return clusters.tolist()
@@ -77,20 +79,38 @@ def generate_cluster_keywords(newsgroups_train: dict, labels: list[int] ,n_clust
     -------
     The cluster keywords for the given clusters.
     """
-    cluster_keywords = []
 
+    def preprocess(text):
+        text = text.lower()
+        text = re.sub(r'\d+', '', text)
+        return text
+
+    X = np.empty(n_clusters, dtype=object)
     for i in range(n_clusters):
-        cluster_data = [newsgroups_train.data[j] for j in range(len(newsgroups_train.data)) if labels[j] == i]
-        vectorizer = CountVectorizer(max_df=0.95, min_df=2, max_features=1000, stop_words='english')
-        X = vectorizer.fit_transform(cluster_data)
-        lda = LatentDirichletAllocation(n_components=5, max_iter=5, learning_method='online', learning_offset=50.,random_state=0).fit(X)
-        kwds = []
-        for topic_idx, topic in enumerate(lda.components_):
-            feature_names = [vectorizer.get_feature_names_out()[i] for i in topic.argsort()[:-10 - 1:-1] if vectorizer.get_feature_names_out()[i] not in kwds and not vectorizer.get_feature_names_out()[i].isdigit()]
-            kwds.extend(feature_names)
-        cluster_keywords.append(kwds)
+        X[i] = '\n'.join([newsgroups_train.data[j] for j in range(len(newsgroups_train.data)) if labels[j] == i])
 
-    return {i: cluster_keywords[i] for i in range(len(cluster_keywords))}
+    vectorizer = CountVectorizer(
+        max_df=0.8,
+        min_df=0.2,
+        max_features=100000,
+        stop_words="english",
+        preprocessor=preprocess
+    )
+
+    ctfidf_model = ClassTfidfTransformer()
+
+    X = vectorizer.fit_transform(X)
+    X = ctfidf_model.fit_transform(X).todense()
+
+    features, tfidf_sort = np.array(vectorizer.get_feature_names_out()), np.argsort(X)
+
+    num_keywords = 20
+    top_n = features[tfidf_sort][:,-num_keywords:].tolist()
+    
+    # Reverse the keyword lists
+    top_n = [kw[::-1] for kw in top_n]
+
+    return {i: top_n[i] for i in range(len(top_n))}
 
 
 def main():
