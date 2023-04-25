@@ -1,7 +1,6 @@
 import json
 import argparse
 import numpy as np
-import matplotlib.pyplot as plt
 import re
 
 from sklearn.datasets import fetch_20newsgroups
@@ -11,7 +10,7 @@ from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
 from sentence_transformers import SentenceTransformer
-from bertopic.vectorizers import ClassTfidfTransformer
+from ctfidf import ClassTfidfTransformer
 
 ZOOM_LEVELS = [5, 10, 20, -1] # -1 is for the full graph (clusters with the second to last zoom level)
 MODEL = 'all-MiniLM-L6-v2'
