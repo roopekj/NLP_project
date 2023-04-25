@@ -46,17 +46,17 @@ def get_nodes(zoom_level: int, max_nodes: int = -1) -> list[dict]:
 
     # Create the nodes
     nodes = []
-    # TODO FIX
     for i in range(len(clusters)):
         nodes.append(
             {
                 "data": {
                     "id": i,
                     "label": labels[i],
+                    "textlabel": labels[i][0],
                     "group": clusters[i],
                     "text": samples[i] if zoom_level == -1 else "This node represents a cluster of articles.\n You can see what the cluster is about from the tags below, or use the slider to increase the zoom level and see the articles inside.",
                 },
-                "position": {"x": embeddings[i][0], "y": embeddings[i][1]},
+                "position": {"x": embeddings[i][0], "y": -embeddings[i][1]},
                 "classes": f"node-{clusters[i]}",
                 "grabbable": False,
                 "selectable": True,
@@ -88,6 +88,8 @@ def get_stylesheet(nodes: list[dict]):
                 "style": {
                     "background-color": palette[i],
                     "line-color": palette[i],
+                    "label": "data(textlabel)" if CURRENT_ZOOM_LEVEL != -1 else "",
+                    "font-size": min(70 / len(unique_clusters), 10) if CURRENT_ZOOM_LEVEL != -1 else 0,
                 },
             }
         )

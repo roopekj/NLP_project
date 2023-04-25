@@ -13,7 +13,7 @@ from sentence_transformers import SentenceTransformer
 from ctfidf import ClassTfidfTransformer
 
 ZOOM_LEVELS = [5, 10, 20, -1] # -1 is for the full graph (clusters with the second to last zoom level)
-MODEL = 'all-MiniLM-L6-v2'
+MODEL = 'all-MiniLM-L12-v2'
 OUTPUT_FILE = 'app/data/data.json'
 CLUSTER_ALGOS = ['kmeans', 'agglomerative', 'spectral']
 
@@ -30,14 +30,14 @@ def generate_clusters(embeddings: np.ndarray, n_clusters: int, algo) -> list[int
     -------
     The clusters for the given embeddings.
     """
-
+    print(f'Clustering with {algo}...')
     # Cluster the embeddings
     if algo == 'agglomerative':
-        c = AgglomerativeClustering(n_clusters=n_clusters, affinity='euclidean', linkage='ward').fit(embeddings)
+        c = AgglomerativeClustering(n_clusters=n_clusters, metric='euclidean', linkage='ward').fit(embeddings)
     elif algo == 'kmeans':
         c = KMeans(n_clusters=n_clusters, random_state=0, n_init='auto').fit(embeddings)
     elif algo == 'spectral':
-        c = SpectralClustering(n_clusters=n_clusters, affinity='nearest_neighbors').fit(embeddings)
+        c = SpectralClustering(n_clusters=n_clusters, metric='nearest_neighbors').fit(embeddings)
     clusters = c.labels_
 
     return clusters.tolist()
@@ -163,7 +163,7 @@ def main():
         if zoom_level != -1:
             data_dict = {}
             print(f'Generating clusters for zoom level {zoom_level}...')
-            clusters = generate_clusters(train_embeddings, zoom_level)
+            clusters = generate_clusters(train_embeddings, zoom_level, algo=args.cluster)
             data_dict['clusters'] = list(range(max(clusters) + 1))
 
             print(f'Generating t-SNE embeddings for zoom level {zoom_level}...')
@@ -180,7 +180,7 @@ def main():
         else:
             data_dict = {}
             zoom_level = max(ZOOM_LEVELS) if max(ZOOM_LEVELS) > 0 else 1
-            clusters = generate_clusters(train_embeddings, zoom_level)
+            clusters = generate_clusters(train_embeddings, zoom_level, algo=args.cluster)
             data_dict['clusters'] = clusters
 
             print(f'Generating t-SNE embeddings for full zoom level...')
