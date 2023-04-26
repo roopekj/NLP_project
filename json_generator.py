@@ -13,11 +13,11 @@ from sentence_transformers import SentenceTransformer
 from ctfidf import ClassTfidfTransformer
 
 ZOOM_LEVELS = [5, 10, 20, -1] # -1 is for the full graph (clusters with the second to last zoom level)
-MODEL = 'all-MiniLM-L12-v2'
+MODEL = 'all-mpnet-base-v2'
 OUTPUT_FILE = 'app/data/data.json'
 CLUSTER_ALGOS = ['kmeans', 'agglomerative', 'spectral']
 
-def generate_clusters(embeddings: np.ndarray, n_clusters: int, algo) -> list[int]:
+def generate_clusters(embeddings: np.ndarray, n_clusters: int, algo: str) -> list[int]:
     """
     Generate clusters for the given embeddings.
 
@@ -31,13 +31,13 @@ def generate_clusters(embeddings: np.ndarray, n_clusters: int, algo) -> list[int
     The clusters for the given embeddings.
     """
     print(f'Clustering with {algo}...')
-    # Cluster the embeddings
+
     if algo == 'agglomerative':
         c = AgglomerativeClustering(n_clusters=n_clusters, metric='euclidean', linkage='ward').fit(embeddings)
     elif algo == 'kmeans':
         c = KMeans(n_clusters=n_clusters, random_state=0, n_init='auto').fit(embeddings)
     elif algo == 'spectral':
-        c = SpectralClustering(n_clusters=n_clusters, metric='nearest_neighbors').fit(embeddings)
+        c = SpectralClustering(n_clusters=n_clusters, affinity='nearest_neighbors').fit(embeddings)
     clusters = c.labels_
 
     return clusters.tolist()
@@ -56,14 +56,12 @@ def generate_tsne_embeddings(embeddings: np.ndarray, zoom_level: int, clusters: 
     The t-SNE embeddings for the given embeddings.
     """
 
-    # Generate t-SNE embeddings
     tsne = TSNE(n_components=2, n_iter=1000, n_iter_without_progress=200, perplexity=35)
     tsne_embeddings = tsne.fit_transform(embeddings)
 
     if zoom_level == -1:
         return tsne_embeddings.tolist()
     else:
-        # return one embedding per cluster centered around the mean of the cluster
         cluster_embeddings = []
         for i in range(max(clusters) + 1):
             tmp = list((np.mean(tsne_embeddings[[j for j in range(len(tsne_embeddings)) if clusters[j] == i]], axis=0)))
