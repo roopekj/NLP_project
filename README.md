@@ -3,7 +3,11 @@
 
 ## Instructions
 
+**IMPORTANT:** All files related to this project are available at https://github.com/roopekj/NLP_project
+
 Please, contact sergio.hernandezgutierrez@aalto.fi if the following steps are not clear or sufficient to successfully run the application for grading purposes.
+All files that are not crucial for the functioning of the project are located under /misc, such as our planning documents and early prototypes.
+
 
 To run the visualization application, please follow the following steps:
 
@@ -12,10 +16,11 @@ To run the visualization application, please follow the following steps:
 2. In a terminal emulator (e.g., a terminal using Bash), use `cd` commands to place yourself in the submission's root folder and use this terminal for the next steps; for example:
 
 ```bash
-cd ~/Downloads/team10_submission
+cd PATH_TO_PROJECT_ROOT
 ```
 
 3. Install the required Python libraries by executing the following command:
+**NOTE:** It's advisable to create a venv (```python3 -m venv ./venv; ```) or otherwise separate this install from your default python environment (conda etc)
 
 ```bash
 python3 -m pip install -r requirements.txt
