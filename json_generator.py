@@ -1,22 +1,23 @@
 import json
 import argparse
 import numpy as np
-import matplotlib.pyplot as plt
+import re
 
 from sklearn.datasets import fetch_20newsgroups
 from sklearn.cluster import KMeans, AgglomerativeClustering, SpectralClustering
 from sklearn.manifold import TSNE
 from sklearn.decomposition import LatentDirichletAllocation
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
 from sentence_transformers import SentenceTransformer
+from ctfidf import ClassTfidfTransformer
 
 ZOOM_LEVELS = [5, 10, 20, -1] # -1 is for the full graph (clusters with the second to last zoom level)
-MODEL = 'all-MiniLM-L6-v2'
+MODEL = 'all-mpnet-base-v2'
 OUTPUT_FILE = 'app/data/data.json'
 CLUSTER_ALGOS = ['kmeans', 'agglomerative', 'spectral']
 
-def generate_clusters(embeddings: np.ndarray, n_clusters: int, algo) -> list[int]:
+def generate_clusters(embeddings: np.ndarray, n_clusters: int, algo: str) -> list[int]:
     """
     Generate clusters for the given embeddings.
 
@@ -29,10 +30,10 @@ def generate_clusters(embeddings: np.ndarray, n_clusters: int, algo) -> list[int
     -------
     The clusters for the given embeddings.
     """
+    print(f'Clustering with {algo}...')
 
-    # Cluster the embeddings
     if algo == 'agglomerative':
-        c = AgglomerativeClustering(n_clusters=n_clusters, affinity='euclidean', linkage='ward').fit(embeddings)
+        c = AgglomerativeClustering(n_clusters=n_clusters, metric='euclidean', linkage='ward').fit(embeddings)
     elif algo == 'kmeans':
         c = KMeans(n_clusters=n_clusters, random_state=0, n_init='auto').fit(embeddings)
     elif algo == 'spectral':
@@ -55,14 +56,12 @@ def generate_tsne_embeddings(embeddings: np.ndarray, zoom_level: int, clusters: 
     The t-SNE embeddings for the given embeddings.
     """
 
-    # Generate t-SNE embeddings
     tsne = TSNE(n_components=2, n_iter=1000, n_iter_without_progress=200, perplexity=35)
     tsne_embeddings = tsne.fit_transform(embeddings)
 
     if zoom_level == -1:
         return tsne_embeddings.tolist()
     else:
-        # return one embedding per cluster centered around the mean of the cluster
         cluster_embeddings = []
         for i in range(max(clusters) + 1):
             tmp = list((np.mean(tsne_embeddings[[j for j in range(len(tsne_embeddings)) if clusters[j] == i]], axis=0)))
@@ -83,20 +82,38 @@ def generate_cluster_keywords(newsgroups_train: dict, labels: list[int] ,n_clust
     -------
     The cluster keywords for the given clusters.
     """
-    cluster_keywords = []
 
+    def preprocess(text):
+        text = text.lower()
+        text = re.sub(r'\d+', '', text)
+        return text
+
+    X = np.empty(n_clusters, dtype=object)
     for i in range(n_clusters):
-        cluster_data = [newsgroups_train.data[j] for j in range(len(newsgroups_train.data)) if labels[j] == i]
-        vectorizer = CountVectorizer(max_df=0.95, min_df=2, max_features=1000, stop_words='english')
-        X = vectorizer.fit_transform(cluster_data)
-        lda = LatentDirichletAllocation(n_components=5, max_iter=5, learning_method='online', learning_offset=50.,random_state=0).fit(X)
-        kwds = []
-        for topic_idx, topic in enumerate(lda.components_):
-            feature_names = [vectorizer.get_feature_names_out()[i] for i in topic.argsort()[:-10 - 1:-1] if vectorizer.get_feature_names_out()[i] not in kwds and not vectorizer.get_feature_names_out()[i].isdigit()]
-            kwds.extend(feature_names)
-        cluster_keywords.append(kwds)
+        X[i] = '\n'.join([newsgroups_train.data[j] for j in range(len(newsgroups_train.data)) if labels[j] == i])
 
-    return {i: cluster_keywords[i] for i in range(len(cluster_keywords))}
+    vectorizer = CountVectorizer(
+        max_df=0.8,
+        min_df=0.2,
+        max_features=100000,
+        stop_words="english",
+        preprocessor=preprocess
+    )
+
+    ctfidf_model = ClassTfidfTransformer()
+
+    X = vectorizer.fit_transform(X)
+    X = ctfidf_model.fit_transform(X).todense()
+
+    features, tfidf_sort = np.array(vectorizer.get_feature_names_out()), np.argsort(X)
+
+    num_keywords = 20
+    top_n = features[tfidf_sort][:,-num_keywords:].tolist()
+    
+    # Reverse the keyword lists
+    top_n = [kw[::-1] for kw in top_n]
+
+    return {i: top_n[i] for i in range(len(top_n))}
 
 
 def main():
@@ -105,13 +122,13 @@ def main():
     parser.add_argument('-o', '--output', type=str, default=OUTPUT_FILE, help='Output file path')
     parser.add_argument('-m', '--model', type=str, default=MODEL, help='SBERT model to use')
     parser.add_argument('-z', '--zoom', type=int, nargs='+', default=ZOOM_LEVELS, help='Zoom levels to use')
-    parser.add_argument('-c', '--cluster', type=str, default='kmeans', help='Clustering algorithm to use')
+    parser.add_argument('-c', '--cluster', type=str, default='agglomerative', help='Clustering algorithm to use')
+
+    args = parser.parse_args()
 
     if not args.cluster in CLUSTER_ALGOS:
         args.cluster = 'agglomerative'
     
-    args = parser.parse_args()
-
     ZOOM_LEVELS = args.zoom
     MODEL = args.model
     OUTPUT_FILE = args.output
@@ -144,7 +161,7 @@ def main():
         if zoom_level != -1:
             data_dict = {}
             print(f'Generating clusters for zoom level {zoom_level}...')
-            clusters = generate_clusters(train_embeddings, zoom_level)
+            clusters = generate_clusters(train_embeddings, zoom_level, algo=args.cluster)
             data_dict['clusters'] = list(range(max(clusters) + 1))
 
             print(f'Generating t-SNE embeddings for zoom level {zoom_level}...')
@@ -161,7 +178,7 @@ def main():
         else:
             data_dict = {}
             zoom_level = max(ZOOM_LEVELS) if max(ZOOM_LEVELS) > 0 else 1
-            clusters = generate_clusters(train_embeddings, zoom_level)
+            clusters = generate_clusters(train_embeddings, zoom_level, algo=args.cluster)
             data_dict['clusters'] = clusters
 
             print(f'Generating t-SNE embeddings for full zoom level...')
